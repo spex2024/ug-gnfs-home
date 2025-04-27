@@ -356,7 +356,6 @@ export default function EmployeeForm() {
 
     // Calculate form progress
     useEffect(() => {
-        const formValues = form.getValues();
         const dirtyFields = form.formState.dirtyFields; // Fields that have been touched or modified
         const totalFields = 22; // Total number of fields in the form
 
