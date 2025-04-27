@@ -11,21 +11,21 @@ const api = axios.create({
     withCredentials: true,
 });
 
-interface Employee {
-    firstName: string;
-    middleName: string;
-    lastName: string;
-    dob: string;
-    rank: string;
-    appointmentDate: string;
-    staffId: string;
-    serviceNumber: string;
-    bankName: string;
-    accountNumber: string;
-    address: string;
-    phoneNumber: string;
-    emergencyContact: string;
-}
+// interface Employee {
+//     firstName: string;
+//     middleName: string;
+//     lastName: string;
+//     dob: string;
+//     rank: string;
+//     appointmentDate: string;
+//     staffId: string;
+//     serviceNumber: string;
+//     bankName: string;
+//     accountNumber: string;
+//     address: string;
+//     phoneNumber: string;
+//     emergencyContact: string;
+// }
 
 interface State {
     isLoading: boolean;

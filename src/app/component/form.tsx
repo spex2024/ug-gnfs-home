@@ -359,7 +359,7 @@ export default function EmployeeForm() {
         const formValues = form.getValues()
         // Define the total number of fields manually instead of using Object.keys on the schema
         const totalFields = 22 // Total number of fields in the form
-        const filledFields = Object.entries(formValues).filter(([_, value]) => {
+        const filledFields = Object.entries(formValues).filter(([value]) => {
             if (value === undefined || value === "") return false
             return true
         }).length

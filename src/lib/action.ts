@@ -52,9 +52,9 @@ export async function registerEmployee(formData: EmployeeFormData) {
             message: "Employee registered successfully",
         }
     } catch (error) {
-        return {
-            success: false,
-            message: "Failed to register employee",
-        }
+        // Log the error and include it in the response
+        console.error('Error registering employee:', error)
+
+
     }
 }
