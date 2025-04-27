@@ -475,8 +475,8 @@ export default function EmployeeForm() {
                             className="w-16 h-16 rounded-full border-4 border-[#8B4513] shadow-md"
                         />
                         <div>
-                            <h1 className="text-2xl font-bold text-[#1C1F2A]">University of Ghana Fire Station</h1>
-                            <p className="text-base text-[#8B4513] ">Staff Data Collection</p>
+                            <h1 className="sm:text-2xl font-bold text-[#1C1F2A]">University of Ghana Fire Station</h1>
+                            <p className="sm:text-base text-[#8B4513] ">Staff Data Collection</p>
                         </div>
                     </div>
 
