@@ -356,16 +356,17 @@ export default function EmployeeForm() {
 
     // Calculate form progress
     useEffect(() => {
-        const formValues = form.getValues()
-        // Define the total number of fields manually instead of using Object.keys on the schema
-        const totalFields = 22 // Total number of fields in the form
-        const filledFields = Object.entries(formValues).filter(([value]) => {
-            if (value === undefined || value === "") return false
-            return true
-        }).length
+        const formValues = form.getValues();
+        const dirtyFields = form.formState.dirtyFields; // Fields that have been touched or modified
+        const totalFields = 22; // Total number of fields in the form
 
-        setFormProgress(Math.round((filledFields / totalFields) * 100))
-    }, [form.watch()])
+        // Count how many dirty (filled/modified) fields there are
+        const filledFields = Object.keys(dirtyFields).length;
+
+        // Update form progress based on touched/modified fields
+        setFormProgress(Math.round((filledFields / totalFields) * 100));
+    }, [form.formState.dirtyFields]); // Only trigger when dirtyFields changes
+
 
     const { addEmployee } = useEmployeeStore()
     async function onSubmit(data: EmployeeFormValues) {
