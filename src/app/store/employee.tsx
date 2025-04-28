@@ -11,49 +11,34 @@ const api = axios.create({
     withCredentials: true,
 });
 
-// interface Employee {
-//     firstName: string;
-//     middleName: string;
-//     lastName: string;
-//     dob: string;
-//     rank: string;
-//     appointmentDate: string;
-//     staffId: string;
-//     serviceNumber: string;
-//     bankName: string;
-//     accountNumber: string;
-//     address: string;
-//     phoneNumber: string;
-//     emergencyContact: string;
-// }
+
 
 interface State {
     isLoading: boolean;
     success: boolean;
     error: string | null;
     addEmployee: (employee: {
-        firstName: ZodString["_output"];
-        lastName: ZodString["_output"];
-        dob: ZodDate["_output"];
-        gender: ZodString["_output"];
-        maritalStatus: ZodString["_output"];
-        levelOfficer: ZodString["_output"];
-        rank: ZodString["_output"];
-        qualification: ZodString["_output"];
-        appointmentDate: ZodDate["_output"];
-        staffId: ZodString["_output"];
-        serviceNumber: ZodString["_output"];
-        bankName: ZodString["_output"];
-        accountNumber: ZodString["_output"];
-        address: ZodString["_output"];
-        email: ZodString["_output"];
-        nationalId: ZodString["_output"];
-        phoneNumber: ZodString["_output"];
-        emergencyContactName: ZodString["_output"];
-        emergencyContact: ZodString["_output"];
+        firstName?: ZodString["_output"];
         middleName?: ZodOptional<ZodString>["_output"];
+        lastName?: ZodString["_output"];
+        dob?: ZodDate["_output"];
+        gender?: ZodString["_output"];
+        maritalStatus?: ZodString["_output"];
+        levelOfficer?: ZodString["_output"];
+        rank?: ZodString["_output"];
+        department?: ZodString["_output"];
+        qualification?: ZodString["_output"];
         mateType?: ZodOptional<ZodString>["_output"];
         mateNumber?: ZodOptional<ZodString>["_output"];
+        appointmentDate?: ZodDate["_output"];
+        staffId?: ZodString["_output"];
+        serviceNumber?: ZodString["_output"];
+        address?: ZodString["_output"];
+        email?: ZodString["_output"];
+        nationalId?: ZodString["_output"];
+        phoneNumber?: ZodString["_output"];
+        emergencyContactName?: ZodString["_output"];
+        emergencyContact?: ZodString["_output"];
         mateInfo: string
     }) => Promise<void>;
 }

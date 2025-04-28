@@ -57,11 +57,6 @@ const employeeFormSchema = z
         appointmentDate: z.date({ required_error: "Appointment date is required" }),
         staffId: z.string().min(1, { message: "Staff ID is required" }),
         serviceNumber: z.string().min(1, { message: "Service number is required" }),
-        bankName: z.string().min(1, { message: "Bank name is required" }),
-        accountNumber: z
-            .string()
-            .regex(/^\d+$/, { message: "Account number must contain only digits" })
-            .min(10, { message: "Account number must be at least 10 digits" }),
         address: z.string().min(5, { message: "Address must be at least 5 characters" }),
         email: z.string().email({ message: "Please enter a valid email address" }),
         nationalId: z.string().min(1, { message: "National ID is required" }),
@@ -271,12 +266,6 @@ const sectionColors = {
         title: "text-[#8B4513]",
         icon: "text-[#8B4513]",
     },
-    banking: {
-        border: "border-t-[#2E8B57]",
-        bg: "bg-[#2E8B57]/10",
-        title: "text-[#2E8B57]",
-        icon: "text-[#2E8B57]",
-    },
     contact: {
         border: "border-t-[#FFD700]",
         bg: "bg-[#FFD700]/10",
@@ -329,6 +318,7 @@ export default function EmployeeForm() {
     const [currentStep, setCurrentStep] = useState(1)
     const [formProgress, setFormProgress] = useState(0)
     const [customQualification, setCustomQualification] = useState("")
+    const [debugMessage, setDebugMessage] = useState<string>("")
 
     // Default values for the form
     const defaultValues: Partial<EmployeeFormValues> = {
@@ -343,8 +333,6 @@ export default function EmployeeForm() {
         mateNumber: "",
         staffId: "",
         serviceNumber: "",
-        bankName: "",
-        accountNumber: "",
         address: "",
         email: "",
         nationalId: "",
@@ -355,10 +343,11 @@ export default function EmployeeForm() {
         maritalStatus: "",
     }
 
+    // Change the form validation mode to be more permissive
     const form = useForm<EmployeeFormValues>({
         resolver: zodResolver(employeeFormSchema),
         defaultValues,
-        mode: "onSubmit", // Only validate on submit
+        mode: "onSubmit",
     })
 
     // Watch for mate type changes to update validation
@@ -372,53 +361,80 @@ export default function EmployeeForm() {
         }
     }, [watchedMateType, form, mateType])
 
-    // Calculate form progress
-    useEffect(() => {
-        const dirtyFields = form.formState.dirtyFields // Fields that have been touched or modified
-        const totalFields = 22 // Total number of fields in the form
-
-        // Count how many dirty (filled/modified) fields there are
-        const filledFields = Object.keys(dirtyFields).length
-
-        // Update form progress based on touched/modified fields
-        setFormProgress(Math.round((filledFields / totalFields) * 100))
-    }, [form.formState.dirtyFields]) // Only trigger when dirtyFields changes
-
+    // Get the store functions
     const { addEmployee } = useEmployeeStore()
-    async function onSubmit(data: EmployeeFormValues) {
+
+    // Completely rewritten submit handler with proper store integration
+    const handleSubmit = async (data: EmployeeFormValues) => {
+        console.log("Submit handler called with data:", data)
+
+        // Prevent double submission
+        if (isSubmitting) return
+
+        // Set submitting state
         setIsSubmitting(true)
-        let loadingToast: string | undefined
 
         try {
-            loadingToast = toast.loading("Registering employee...")
-
-            // Combine mateType and mateNumber
-            const combinedData = {
-                ...data,
-                mateInfo: `${data.mateType}-${data.mateNumber}`, // Combine as one string
-            }
-
-            console.log(combinedData)
-
-            await addEmployee(combinedData)
-
-            toast.dismiss(loadingToast)
-            toast.success(`${data.firstName} ${data.lastName} has been registered successfully! 👏`, {
-                duration: 5000,
+            // Show loading toast directly
+            const loadingToastId = toast.loading("Registering employee...", {
                 style: {
-                    background: "#DC143C",
-                    color: "#fff",
+                    background: "#f3f4f6",
+                    color: "#1f2937",
                     borderRadius: "10px",
                     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
                 },
             })
 
-            handleResetForm()
-        } catch (error) {
-            toast.dismiss(loadingToast)
+            console.log("Loading toast shown with ID:", loadingToastId)
 
-            const errMsg = error instanceof Error ? error.message : "There was a problem registering the employee."
-            toast.error(errMsg, {
+            // Prepare data for submission
+            const submissionData = {
+                ...data,
+                mateInfo: `${data.mateType || ""}-${data.mateNumber || ""}`,
+            }
+
+            console.log("Calling addEmployee with data:", submissionData)
+
+            // Call the store function and wait for it to complete
+            await addEmployee(submissionData)
+
+            // Get the current state from the store
+            const { success, error } = useEmployeeStore.getState()
+
+            // Dismiss loading toast
+            toast.dismiss(loadingToastId)
+
+            if (error) {
+                // Show error toast if there's an error
+                toast.error(error, {
+                    duration: 5000,
+                    style: {
+                        background: "#ef4444",
+                        color: "#fff",
+                        borderRadius: "10px",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                    },
+                })
+            } else if (success) {
+                // Show success toast only if success is true
+                toast.success(`${data.firstName} ${data.lastName} has been registered successfully!`, {
+                    duration: 5000,
+                    style: {
+                        background: "#22c55e",
+                        color: "#fff",
+                        borderRadius: "10px",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                    },
+                })
+
+                // Reset the form on success
+                handleResetForm()
+            }
+        } catch (error) {
+            console.error("Error in submit handler:", error)
+
+            // Show error toast
+            toast.error(error instanceof Error ? error.message : "Failed to register employee", {
                 duration: 5000,
                 style: {
                     background: "#ef4444",
@@ -433,8 +449,6 @@ export default function EmployeeForm() {
     }
 
     // Modify the goToStep function to prevent validation when navigating between steps
-    // Find the goToStep function (around line 1000) and replace it with:
-
     const goToStep = (step: number) => {
         // Prevent validation when navigating between steps
         setCurrentStep(step)
@@ -459,6 +473,96 @@ export default function EmployeeForm() {
         setCurrentStep(1)
         setCustomQualification("")
     }
+
+    // Manual submit handler for the submit button
+    const handleManualSubmit = () => {
+        console.log("Manual submit button clicked")
+        setDebugMessage("Manual submit button clicked")
+
+        if (isSubmitting) return
+
+        // Get form data
+        const data = form.getValues()
+        setIsSubmitting(true)
+
+        // Show loading toast
+        const loadingToastId = toast.loading("Registering employee...")
+
+        // Prepare data for submission
+        const submissionData = {
+            ...data,
+            mateInfo: `${data.mateType || ""}-${data.mateNumber || ""}`,
+        }
+
+        // Call the store function
+        addEmployee(submissionData)
+            .then(() => {
+                toast.dismiss(loadingToastId)
+                toast.success(`${data.firstName} ${data.lastName} has been registered successfully!`)
+                handleResetForm()
+            })
+            .catch((error) => {
+                toast.dismiss(loadingToastId)
+                toast.error(error instanceof Error ? error.message : "Failed to register employee")
+            })
+            .finally(() => {
+                setIsSubmitting(false)
+            })
+    }
+
+    // Replace the useEffect for progress calculation with this improved version
+    useEffect(() => {
+        // Get all fields that have values
+        const formValues = form.getValues()
+        const requiredFields = [
+            "firstName",
+            "lastName",
+            "dob",
+            "gender",
+            "maritalStatus",
+            "levelOfficer",
+            "rank",
+            "department",
+            "qualification",
+            "appointmentDate",
+            "staffId",
+            "serviceNumber",
+            "address",
+            "email",
+            "nationalId",
+            "phoneNumber",
+            "emergencyContactName",
+            "emergencyContact",
+        ]
+
+        // Count how many required fields are filled with valid values
+        let filledRequiredFields = 0
+
+        for (const field of requiredFields) {
+            const value = formValues[field]
+            if (value !== undefined && value !== "" && value !== null) {
+                // For date fields, check if they're valid Date objects
+                if (field === "dob" || field === "appointmentDate") {
+                    if (value instanceof Date && !isNaN(value.getTime())) {
+                        filledRequiredFields++
+                    }
+                } else {
+                    filledRequiredFields++
+                }
+            }
+        }
+
+        // Calculate percentage based on required fields
+        const totalRequiredFields = requiredFields.length
+        const calculatedProgress = Math.round((filledRequiredFields / totalRequiredFields) * 100)
+
+        setFormProgress(calculatedProgress)
+    }, [form.watch(), form]) // Watch all form fields for changes
+
+    // Remove this useEffect entirely as we're now handling the store state directly in the submit handler
+    useEffect(() => {
+        // This effect is no longer needed since we're checking the store state directly after the API call
+    }, [])
 
     return (
         <div className="py-8  min-h-screen">
@@ -498,6 +602,14 @@ export default function EmployeeForm() {
                     </div>
                 </motion.div>
 
+                {/* Debug Message - Only visible during development */}
+                {process.env.NODE_ENV !== "production" && debugMessage && (
+                    <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4 rounded">
+                        <p className="font-bold">Debug:</p>
+                        <p>{debugMessage}</p>
+                    </div>
+                )}
+
                 {/* Main Content - Side by Side Layout */}
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Left Column - Consent and Information */}
@@ -524,8 +636,8 @@ export default function EmployeeForm() {
                                 <div className="flex items-start gap-2">
                                     <div className="mt-1 text-[#DC143C] font-bold">•</div>
                                     <p className="text-sm text-[#1C1F2A]">
-                                        <span className="font-medium">Complete all sections</span> - Personal, Employment, Banking, and
-                                        Contact details
+                                        <span className="font-medium">Complete all sections</span> - Personal, Employment, and Contact
+                                        details
                                     </p>
                                 </div>
                                 <div className="flex items-start gap-2">
@@ -648,7 +760,7 @@ export default function EmployeeForm() {
                         <div className="space-y-6">
                             {/* Form content */}
                             <Form {...form}>
-                                <form id="employee-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                                <form id="employee-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
                                     {/* Personal Information */}
                                     {currentStep === 1 && (
                                         <motion.div initial="hidden" animate="visible" variants={cardVariants}>
@@ -1375,7 +1487,7 @@ export default function EmployeeForm() {
                                             type="submit"
                                             form="employee-form"
                                             disabled={isSubmitting}
-                                            className={`bg-[#FFD700] hover:bg-[#e6c200] text-[#1C1F2A] px-8 py-2 rounded-full shadow-sm transition-all hover:translate-y-[-2px]`}
+                                            className="bg-[#FFD700] hover:bg-[#e6c200] text-[#1C1F2A] px-8 py-2 rounded-full shadow-sm transition-all hover:translate-y-[-2px]"
                                         >
                                             {isSubmitting ? (
                                                 <div className="flex items-center gap-2">
