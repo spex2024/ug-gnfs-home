@@ -19,6 +19,21 @@ import { useEmployeeStore } from "@/app/store/employee"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DayPicker } from "react-day-picker"
 
+// Define department and role types in a separate file to avoid Next.js export errors
+export const departments = [
+    "Operations",
+    "Watch Room",
+    "Safety",
+    "Admin",
+    "Investigation",
+    "Welfare",
+    "Accounts",
+    "Statistics",
+    "Stores",
+    "Training",
+    "IT",
+] as const
+
 // Function to validate Roman numerals
 const isValidRomanNumeral = (value: string) => {
     return /^(M{0,3})(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/i.test(value)
@@ -35,6 +50,7 @@ const employeeFormSchema = z
         maritalStatus: z.string().min(1, { message: "Marital status is required" }),
         levelOfficer: z.string().min(1, { message: "Level officer is required" }),
         rank: z.string().min(1, { message: "Rank is required" }),
+        department: z.string().min(1, { message: "Department is required" }),
         qualification: z.string().min(1, { message: "Qualification is required" }),
         mateType: z.string().optional(),
         mateNumber: z.string().optional(),
@@ -312,7 +328,7 @@ export default function EmployeeForm() {
     const [mateType, setMateType] = useState<string>("")
     const [currentStep, setCurrentStep] = useState(1)
     const [formProgress, setFormProgress] = useState(0)
-    const [isStepValid, setIsStepValid] = useState(false)
+    const [customQualification, setCustomQualification] = useState("")
 
     // Default values for the form
     const defaultValues: Partial<EmployeeFormValues> = {
@@ -321,6 +337,7 @@ export default function EmployeeForm() {
         lastName: "",
         levelOfficer: "",
         rank: "",
+        department: "",
         qualification: "",
         mateType: "",
         mateNumber: "",
@@ -341,6 +358,7 @@ export default function EmployeeForm() {
     const form = useForm<EmployeeFormValues>({
         resolver: zodResolver(employeeFormSchema),
         defaultValues,
+        mode: "onSubmit", // Only validate on submit
     })
 
     // Watch for mate type changes to update validation
@@ -356,16 +374,15 @@ export default function EmployeeForm() {
 
     // Calculate form progress
     useEffect(() => {
-        const dirtyFields = form.formState.dirtyFields; // Fields that have been touched or modified
-        const totalFields = 22; // Total number of fields in the form
+        const dirtyFields = form.formState.dirtyFields // Fields that have been touched or modified
+        const totalFields = 22 // Total number of fields in the form
 
         // Count how many dirty (filled/modified) fields there are
-        const filledFields = Object.keys(dirtyFields).length;
+        const filledFields = Object.keys(dirtyFields).length
 
         // Update form progress based on touched/modified fields
-        setFormProgress(Math.round((filledFields / totalFields) * 100));
-    }, [form.formState.dirtyFields]); // Only trigger when dirtyFields changes
-
+        setFormProgress(Math.round((filledFields / totalFields) * 100))
+    }, [form.formState.dirtyFields]) // Only trigger when dirtyFields changes
 
     const { addEmployee } = useEmployeeStore()
     async function onSubmit(data: EmployeeFormValues) {
@@ -415,11 +432,23 @@ export default function EmployeeForm() {
         }
     }
 
-    // Function to handle step navigation
+    // Modify the goToStep function to prevent validation when navigating between steps
+    // Find the goToStep function (around line 1000) and replace it with:
+
     const goToStep = (step: number) => {
+        // Prevent validation when navigating between steps
         setCurrentStep(step)
         // Scroll to top when changing steps
         window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+
+    // Update the Previous button click handler to prevent validation
+    const handlePrevious = () => {
+        if (currentStep > 1) {
+            // Clear any validation errors when going back
+            form.clearErrors()
+            goToStep(currentStep - 1)
+        }
     }
 
     // Function to properly reset the form including select fields
@@ -428,35 +457,8 @@ export default function EmployeeForm() {
         setLevelOfficer("")
         setMateType("")
         setCurrentStep(1)
+        setCustomQualification("")
     }
-
-    // Function to check if the current step's required fields are filled
-    const isCurrentStepValid = () => {
-        const formValues = form.getValues()
-        const formErrors = form.formState.errors
-
-        // Check if there are any errors in the form
-        if (Object.keys(formErrors).length > 0) return false
-
-        // Define required fields for each step
-        const requiredFieldsByStep = {
-            1: ["firstName", "lastName", "dob", "gender", "maritalStatus", "nationalId"],
-            2: ["levelOfficer", "rank", "qualification", "appointmentDate", "staffId", "serviceNumber", "email"],
-            3: ["bankName", "accountNumber"],
-            4: ["address", "phoneNumber", "emergencyContactName", "emergencyContact"],
-        }
-
-        // Check if all required fields for the current step are filled
-        return requiredFieldsByStep[currentStep as keyof typeof requiredFieldsByStep].every((field) => {
-            const value = formValues[field as keyof typeof formValues]
-            return value !== undefined && value !== ""
-        })
-    }
-
-    // Update step validation status whenever form values change
-    useEffect(() => {
-        setIsStepValid(isCurrentStepValid())
-    }, [form.watch(), currentStep])
 
     return (
         <div className="py-8  min-h-screen">
@@ -633,811 +635,780 @@ export default function EmployeeForm() {
                                     variant={currentStep === 3 ? "default" : "outline"}
                                     onClick={() => goToStep(3)}
                                     className={cn(
-                                        "flex-1 rounded-full bg-white/90 text-[#1C1F2A] border-[#2E8B57] hover:bg-white",
-                                        currentStep === 3 ? "bg-[#2E8B57] text-white hover:bg-[#267a4b]" : "",
-                                    )}
-                                >
-                                    3. Banking
-                                </Button>
-                                <Button
-                                    variant={currentStep === 4 ? "default" : "outline"}
-                                    onClick={() => goToStep(4)}
-                                    className={cn(
                                         "flex-1 rounded-full bg-white/90 text-[#1C1F2A] border-[#FFD700] hover:bg-white",
-                                        currentStep === 4 ? "bg-[#FFD700] text-[#1C1F2A] hover:bg-[#e6c200]" : "",
+                                        currentStep === 3 ? "bg-[#FFD700] text-[#1C1F2A] hover:bg-[#e6c200]" : "",
                                     )}
                                 >
-                                    4. Contact
+                                    3. Contact
                                 </Button>
                             </div>
                         </div>
 
-                        <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                                {/* Personal Information */}
-                                {currentStep === 1 && (
-                                    <motion.div initial="hidden" animate="visible" variants={cardVariants}>
-                                        <Card
-                                            className={`shadow-md ${sectionColors.personal.border} border-t-4 hover:shadow-lg transition-all duration-300 bg-white`}
-                                        >
-                                            <CardHeader className="rounded-t-lg">
-                                                <CardTitle className={`${sectionColors.personal.title} text-xl flex items-center gap-2`}>
-                                                    <motion.div
-                                                        initial={{ rotate: -10, scale: 0.9 }}
-                                                        animate={{ rotate: 0, scale: 1 }}
-                                                        transition={{ type: "spring", stiffness: 200 }}
-                                                    >
-                                                        <CheckCircle2 className={`h-5 w-5 ${sectionColors.personal.icon}`} />
-                                                    </motion.div>
-                                                    Personal Information
-                                                </CardTitle>
-                                                <CardDescription>Enter the employee&#39;s personal details.</CardDescription>
-                                            </CardHeader>
-                                            <CardContent className="space-y-6 pt-3">
-                                                <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="firstName"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">First Name</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="Jane"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="middleName"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Middle Name</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="A."
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="lastName"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Last Name</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="Smith"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </motion.div>
-                                                <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="dob"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Date of Birth</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <Popover>
-                                                                        <PopoverTrigger asChild>
-                                                                            <FormControl>
-                                                                                <Button
-                                                                                    variant={"outline"}
-                                                                                    className={cn(
-                                                                                        "w-full pl-3 text-left font-normal border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all",
-                                                                                        !field.value && "text-muted-foreground",
-                                                                                    )}
-                                                                                >
-                                                                                    {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                                </Button>
-                                                                            </FormControl>
-                                                                        </PopoverTrigger>
-                                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                                            <CustomDatePicker
-                                                                                value={field.value}
-                                                                                onChange={field.onChange}
-                                                                                disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                        {/* Create a separate form for navigation and a separate form for submission */}
+                        <div className="space-y-6">
+                            {/* Form content */}
+                            <Form {...form}>
+                                <form id="employee-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                                    {/* Personal Information */}
+                                    {currentStep === 1 && (
+                                        <motion.div initial="hidden" animate="visible" variants={cardVariants}>
+                                            <Card
+                                                className={`shadow-md ${sectionColors.personal.border} border-t-4 hover:shadow-lg transition-all duration-300 bg-white`}
+                                            >
+                                                <CardHeader className="rounded-t-lg">
+                                                    <CardTitle className={`${sectionColors.personal.title} text-xl flex items-center gap-2`}>
+                                                        <motion.div
+                                                            initial={{ rotate: -10, scale: 0.9 }}
+                                                            animate={{ rotate: 0, scale: 1 }}
+                                                            transition={{ type: "spring", stiffness: 200 }}
+                                                        >
+                                                            <CheckCircle2 className={`h-5 w-5 ${sectionColors.personal.icon}`} />
+                                                        </motion.div>
+                                                        Personal Information
+                                                    </CardTitle>
+                                                    <CardDescription>Enter the employee&#39;s personal details.</CardDescription>
+                                                </CardHeader>
+                                                <CardContent className="space-y-6 pt-3">
+                                                    <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="firstName"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">First Name</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                placeholder="Jane"
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all"
                                                                             />
-                                                                        </PopoverContent>
-                                                                    </Popover>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="gender"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Gender</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                                        <FormControl>
-                                                                            <SelectTrigger className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all">
-                                                                                <SelectValue placeholder="Select gender" />
-                                                                            </SelectTrigger>
                                                                         </FormControl>
-                                                                        <SelectContent>
-                                                                            <SelectItem value="Male">Male</SelectItem>
-                                                                            <SelectItem value="Female">Female</SelectItem>
-                                                                            <SelectItem value="Other">Other</SelectItem>
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="maritalStatus"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Marital Status</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="middleName"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Middle Name</FormLabel>
+                                                                    <div className="space-y-0">
                                                                         <FormControl>
-                                                                            <SelectTrigger className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all">
-                                                                                <SelectValue placeholder="Select status" />
-                                                                            </SelectTrigger>
+                                                                            <Input
+                                                                                placeholder="A."
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all"
+                                                                            />
                                                                         </FormControl>
-                                                                        <SelectContent>
-                                                                            <SelectItem value="Single">Single</SelectItem>
-                                                                            <SelectItem value="Married">Married</SelectItem>
-                                                                            <SelectItem value="Divorced">Divorced</SelectItem>
-                                                                            <SelectItem value="Widowed">Widowed</SelectItem>
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </motion.div>
-                                                <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="nationalId"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">National ID</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="GHA-123456789-0"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="lastName"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Last Name</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                placeholder="Smith"
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all"
+                                                                            />
+                                                                        </FormControl>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </motion.div>
-                                            </CardContent>
-                                        </Card>
-                                    </motion.div>
-                                )}
-
-                                {/* Employment Information */}
-                                {currentStep === 2 && (
-                                    <motion.div initial="hidden" animate="visible" variants={cardVariants}>
-                                        <Card
-                                            className={`shadow-md ${sectionColors.employment.border} border-t-4 hover:shadow-lg transition-all duration-300 bg-white`}
-                                        >
-                                            <CardHeader className="rounded-t-lg">
-                                                <CardTitle className={`${sectionColors.employment.title} text-xl flex items-center gap-2`}>
-                                                    <motion.div
-                                                        initial={{ rotate: -10, scale: 0.9 }}
-                                                        animate={{ rotate: 0, scale: 1 }}
-                                                        transition={{ type: "spring", stiffness: 200 }}
-                                                    >
-                                                        <CheckCircle2 className={`h-5 w-5 ${sectionColors.employment.icon}`} />
+                                                                </FormItem>
+                                                            )}
+                                                        />
                                                     </motion.div>
-                                                    Employment Information
-                                                </CardTitle>
-                                                <CardDescription>Enter the employee&#39;s work-related details.</CardDescription>
-                                            </CardHeader>
-                                            <CardContent className="space-y-6 pt-3">
-                                                <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="levelOfficer"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Level Officer</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <Select
-                                                                        onValueChange={(value) => {
-                                                                            field.onChange(value)
-                                                                            setLevelOfficer(value)
-                                                                            // Reset rank when level officer changes
-                                                                            form.setValue("rank", "")
-                                                                        }}
-                                                                        value={field.value}
-                                                                    >
-                                                                        <FormControl>
-                                                                            <SelectTrigger className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all">
-                                                                                <SelectValue placeholder="Select level" />
-                                                                            </SelectTrigger>
-                                                                        </FormControl>
-                                                                        <SelectContent>
-                                                                            <SelectItem value="Senior Officer">Senior Officer</SelectItem>
-                                                                            <SelectItem value="Junior Officer">Junior Officer</SelectItem>
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="rank"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Rank</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <Select onValueChange={field.onChange} value={field.value} disabled={!levelOfficer}>
-                                                                        <FormControl>
-                                                                            <SelectTrigger className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all">
-                                                                                <SelectValue
-                                                                                    placeholder={levelOfficer ? "Select rank" : "Select level officer first"}
+                                                    <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="dob"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Date of Birth</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <Popover>
+                                                                            <PopoverTrigger asChild>
+                                                                                <FormControl>
+                                                                                    <Button
+                                                                                        variant={"outline"}
+                                                                                        className={cn(
+                                                                                            "w-full pl-3 text-left font-normal border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all",
+                                                                                            !field.value && "text-muted-foreground",
+                                                                                        )}
+                                                                                    >
+                                                                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                                    </Button>
+                                                                                </FormControl>
+                                                                            </PopoverTrigger>
+                                                                            <PopoverContent className="w-auto p-0" align="start">
+                                                                                <CustomDatePicker
+                                                                                    value={field.value}
+                                                                                    onChange={field.onChange}
+                                                                                    disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
                                                                                 />
-                                                                            </SelectTrigger>
-                                                                        </FormControl>
-                                                                        <SelectContent>
-                                                                            {levelOfficer === "Senior Officer" ? (
-                                                                                <>
-                                                                                    <SelectItem value="DCFO">DCFO</SelectItem>
-                                                                                    <SelectItem value="AFCO I">AFCO I</SelectItem>
-                                                                                    <SelectItem value="AFCO II">AFCO II</SelectItem>
-                                                                                    <SelectItem value="DO I">DO I</SelectItem>
-                                                                                    <SelectItem value="DO II">DO II</SelectItem>
-                                                                                    <SelectItem value="DO III">DO III</SelectItem>
-                                                                                    <SelectItem value="ADO I">ADO I</SelectItem>
-                                                                                    <SelectItem value="ADO II">ADO II</SelectItem>
-                                                                                </>
-                                                                            ) : levelOfficer === "Junior Officer" ? (
-                                                                                <>
-                                                                                    <SelectItem value="RFW">RFW</SelectItem>
-                                                                                    <SelectItem value="RFM">RFM</SelectItem>
-                                                                                    <SelectItem value="FM">FM</SelectItem>
-                                                                                    <SelectItem value="FW">FW</SelectItem>
-                                                                                    <SelectItem value="LFM">LFM</SelectItem>
-                                                                                    <SelectItem value="LFW">LFW</SelectItem>
-                                                                                    <SelectItem value="SUB">SUB</SelectItem>
-                                                                                    <SelectItem value="ASTNO">ASTNO</SelectItem>
-                                                                                    <SelectItem value="AGO">AGO</SelectItem>
-                                                                                    <SelectItem value="STNO II">STNO II</SelectItem>
-                                                                                    <SelectItem value="STNO I">STNO I</SelectItem>
-                                                                                    <SelectItem value="DGO">DGO</SelectItem>
-                                                                                    <SelectItem value="GO">GO</SelectItem>
-                                                                                </>
-                                                                            ) : null}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
+                                                                            </PopoverContent>
+                                                                        </Popover>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="qualification"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Qualification</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                                        <FormControl>
-                                                                            <SelectTrigger className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all">
-                                                                                <SelectValue placeholder="Select qualification" />
-                                                                            </SelectTrigger>
-                                                                        </FormControl>
-                                                                        <SelectContent>
-                                                                            <SelectItem value="JHS">JHS</SelectItem>
-                                                                            <SelectItem value="SHS">SHS</SelectItem>
-                                                                            <SelectItem value="DBS">DBS</SelectItem>
-                                                                            <SelectItem value="Diploma">Diploma</SelectItem>
-                                                                            <SelectItem value="NVTI">NVTI</SelectItem>
-                                                                            <SelectItem value="Professional Certificate">Professional Certificate</SelectItem>
-                                                                            <SelectItem value="HND">HND</SelectItem>
-                                                                            <SelectItem value="Degree">Degree</SelectItem>
-                                                                            <SelectItem value="Masters">Masters</SelectItem>
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </motion.div>
-
-                                                {/* Rest of the employment fields */}
-                                                {/* More form fields here... */}
-                                                <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="appointmentDate"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Appointment Date</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <Popover>
-                                                                        <PopoverTrigger asChild>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="gender"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Gender</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <Select onValueChange={field.onChange} value={field.value}>
                                                                             <FormControl>
-                                                                                <Button
-                                                                                    variant={"outline"}
-                                                                                    className={cn(
-                                                                                        "w-full pl-3 text-left font-normal border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all",
-                                                                                        !field.value && "text-muted-foreground",
-                                                                                    )}
-                                                                                >
-                                                                                    {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                                </Button>
+                                                                                <SelectTrigger className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all">
+                                                                                    <SelectValue placeholder="Select gender" />
+                                                                                </SelectTrigger>
                                                                             </FormControl>
-                                                                        </PopoverTrigger>
-                                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                                            <CustomDatePicker
-                                                                                value={field.value}
-                                                                                onChange={field.onChange}
-                                                                                disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                                                                            />
-                                                                        </PopoverContent>
-                                                                    </Popover>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
+                                                                            <SelectContent>
+                                                                                <SelectItem value="Male">Male</SelectItem>
+                                                                                <SelectItem value="Female">Female</SelectItem>
+                                                                                <SelectItem value="Other">Other</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="staffId"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Staff ID</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="EMP002"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="maritalStatus"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Marital Status</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                                            <FormControl>
+                                                                                <SelectTrigger className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all">
+                                                                                    <SelectValue placeholder="Select status" />
+                                                                                </SelectTrigger>
+                                                                            </FormControl>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="Single">Single</SelectItem>
+                                                                                <SelectItem value="Married">Married</SelectItem>
+                                                                                <SelectItem value="Divorced">Divorced</SelectItem>
+                                                                                <SelectItem value="Widowed">Widowed</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="serviceNumber"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Service Number</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="SN654321"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </motion.div>
-                                                <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="email"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Email</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            type="email"
-                                                                            placeholder="example@fireghana.gov.gh"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="mateType"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Mate Type</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <Select
-                                                                        onValueChange={(value) => {
-                                                                            field.onChange(value)
-                                                                            // Reset mate number when mate type changes
-                                                                            form.setValue("mateNumber", "")
-                                                                        }}
-                                                                        value={field.value}
-                                                                    >
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </motion.div>
+                                                    <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="nationalId"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">National ID</FormLabel>
+                                                                    <div className="space-y-0">
                                                                         <FormControl>
-                                                                            <SelectTrigger className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all">
-                                                                                <SelectValue placeholder="Select mate type" />
-                                                                            </SelectTrigger>
+                                                                            <Input
+                                                                                placeholder="GHA-123456789-0"
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#DC143C] focus:ring focus:ring-[#DC143C]/20 focus:ring-opacity-50 transition-all"
+                                                                            />
                                                                         </FormControl>
-                                                                        <SelectContent>
-                                                                            <SelectItem value="intake">Intake (Senior)</SelectItem>
-                                                                            <SelectItem value="course">Course (Junior)</SelectItem>
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="mateNumber"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Mate Number</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder={
-                                                                                mateType === "intake"
-                                                                                    ? "Roman numeral (e.g., IV)"
-                                                                                    : "Number or alphanumeric (e.g., 123 or A123)"
-                                                                            }
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all"
-                                                                            disabled={!mateType}
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </motion.div>
-                                            </CardContent>
-                                        </Card>
-                                    </motion.div>
-                                )}
-
-                                {/* Banking Information */}
-                                {currentStep === 3 && (
-                                    <motion.div initial="hidden" animate="visible" variants={cardVariants}>
-                                        <Card
-                                            className={`shadow-md ${sectionColors.banking.border} border-t-4 hover:shadow-lg transition-all duration-300 bg-white`}
-                                        >
-                                            <CardHeader className="rounded-t-lg">
-                                                <CardTitle className={`${sectionColors.banking.title} text-xl flex items-center gap-2`}>
-                                                    <motion.div
-                                                        initial={{ rotate: -10, scale: 0.9 }}
-                                                        animate={{ rotate: 0, scale: 1 }}
-                                                        transition={{ type: "spring", stiffness: 200 }}
-                                                    >
-                                                        <CheckCircle2 className={`h-5 w-5 ${sectionColors.banking.icon}`} />
+                                                                </FormItem>
+                                                            )}
+                                                        />
                                                     </motion.div>
-                                                    Banking Information
-                                                </CardTitle>
-                                                <CardDescription>Enter the employee&#39;s banking details.</CardDescription>
-                                            </CardHeader>
-                                            <CardContent className="space-y-6 pt-3">
-                                                <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={formFieldVariants}>
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="bankName"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Bank Name</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="UBA"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#2E8B57] focus:ring focus:ring-[#2E8B57]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="accountNumber"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Account Number</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="9876543210"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#2E8B57] focus:ring focus:ring-[#2E8B57]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </motion.div>
-                                            </CardContent>
-                                        </Card>
-                                    </motion.div>
-                                )}
+                                                </CardContent>
+                                            </Card>
+                                        </motion.div>
+                                    )}
 
-                                {/* Contact Information */}
-                                {currentStep === 4 && (
-                                    <motion.div initial="hidden" animate="visible" variants={cardVariants}>
-                                        <Card
-                                            className={`shadow-md ${sectionColors.contact.border} border-t-4 hover:shadow-lg transition-all duration-300 bg-white`}
-                                        >
-                                            <CardHeader className="rounded-t-lg">
-                                                <CardTitle className={`${sectionColors.contact.title} text-xl flex items-center gap-2`}>
-                                                    <motion.div
-                                                        initial={{ rotate: -10, scale: 0.9 }}
-                                                        animate={{ rotate: 0, scale: 1 }}
-                                                        transition={{ type: "spring", stiffness: 200 }}
-                                                    >
-                                                        <CheckCircle2 className={`h-5 w-5 ${sectionColors.contact.icon}`} />
+                                    {/* Employment Information */}
+                                    {currentStep === 2 && (
+                                        <motion.div initial="hidden" animate="visible" variants={cardVariants}>
+                                            <Card
+                                                className={`shadow-md ${sectionColors.employment.border} border-t-4 hover:shadow-lg transition-all duration-300 bg-white`}
+                                            >
+                                                <CardHeader className="rounded-t-lg">
+                                                    <CardTitle className={`${sectionColors.employment.title} text-xl flex items-center gap-2`}>
+                                                        <motion.div
+                                                            initial={{ rotate: -10, scale: 0.9 }}
+                                                            animate={{ rotate: 0, scale: 1 }}
+                                                            transition={{ type: "spring", stiffness: 200 }}
+                                                        >
+                                                            <CheckCircle2 className={`h-5 w-5 ${sectionColors.employment.icon}`} />
+                                                        </motion.div>
+                                                        Employment Information
+                                                    </CardTitle>
+                                                    <CardDescription>Enter the employee&#39;s work-related details.</CardDescription>
+                                                </CardHeader>
+                                                <CardContent className="space-y-6 pt-3">
+                                                    <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="levelOfficer"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Level Officer</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <Select
+                                                                            onValueChange={(value) => {
+                                                                                field.onChange(value)
+                                                                                setLevelOfficer(value)
+                                                                                // Reset rank when level officer changes
+                                                                                form.setValue("rank", "")
+                                                                            }}
+                                                                            value={field.value}
+                                                                        >
+                                                                            <FormControl>
+                                                                                <SelectTrigger className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all">
+                                                                                    <SelectValue placeholder="Select level" />
+                                                                                </SelectTrigger>
+                                                                            </FormControl>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="Senior Officer">Senior Officer</SelectItem>
+                                                                                <SelectItem value="Junior Officer">Junior Officer</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="rank"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Rank</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <Select onValueChange={field.onChange} value={field.value} disabled={!levelOfficer}>
+                                                                            <FormControl>
+                                                                                <SelectTrigger className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all">
+                                                                                    <SelectValue
+                                                                                        placeholder={levelOfficer ? "Select rank" : "Select level officer first"}
+                                                                                    />
+                                                                                </SelectTrigger>
+                                                                            </FormControl>
+                                                                            <SelectContent>
+                                                                                {levelOfficer === "Senior Officer" ? (
+                                                                                    <>
+                                                                                        <SelectItem value="DCFO">DCFO</SelectItem>
+                                                                                        <SelectItem value="AFCO I">AFCO I</SelectItem>
+                                                                                        <SelectItem value="AFCO II">AFCO II</SelectItem>
+                                                                                        <SelectItem value="DO I">DO I</SelectItem>
+                                                                                        <SelectItem value="DO II">DO II</SelectItem>
+                                                                                        <SelectItem value="DO III">DO III</SelectItem>
+                                                                                        <SelectItem value="ADO I">ADO I</SelectItem>
+                                                                                        <SelectItem value="ADO II">ADO II</SelectItem>
+                                                                                    </>
+                                                                                ) : levelOfficer === "Junior Officer" ? (
+                                                                                    <>
+                                                                                        <SelectItem value="RFW">RFW</SelectItem>
+                                                                                        <SelectItem value="RFM">RFM</SelectItem>
+                                                                                        <SelectItem value="FM">FM</SelectItem>
+                                                                                        <SelectItem value="FW">FW</SelectItem>
+                                                                                        <SelectItem value="LFM">LFM</SelectItem>
+                                                                                        <SelectItem value="LFW">LFW</SelectItem>
+                                                                                        <SelectItem value="SUB">SUB</SelectItem>
+                                                                                        <SelectItem value="ASTNO">ASTNO</SelectItem>
+                                                                                        <SelectItem value="AGO">AGO</SelectItem>
+                                                                                        <SelectItem value="STNO II">STNO II</SelectItem>
+                                                                                        <SelectItem value="STNO I">STNO I</SelectItem>
+                                                                                        <SelectItem value="DGO">DGO</SelectItem>
+                                                                                        <SelectItem value="GO">GO</SelectItem>
+                                                                                    </>
+                                                                                ) : null}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="department"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Department</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                                            <FormControl>
+                                                                                <SelectTrigger className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all">
+                                                                                    <SelectValue placeholder="Select department" />
+                                                                                </SelectTrigger>
+                                                                            </FormControl>
+                                                                            <SelectContent>
+                                                                                {departments.map((dept) => (
+                                                                                    <SelectItem key={dept} value={dept}>
+                                                                                        {dept}
+                                                                                    </SelectItem>
+                                                                                ))}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="qualification"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Qualification</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <Select
+                                                                            onValueChange={(value) => {
+                                                                                field.onChange(value)
+                                                                                if (value !== "Others") {
+                                                                                    setCustomQualification("")
+                                                                                }
+                                                                            }}
+                                                                            value={field.value}
+                                                                        >
+                                                                            <FormControl>
+                                                                                <SelectTrigger className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all">
+                                                                                    <SelectValue placeholder="Select qualification" />
+                                                                                </SelectTrigger>
+                                                                            </FormControl>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="JHS">JHS</SelectItem>
+                                                                                <SelectItem value="SHS">SHS</SelectItem>
+                                                                                <SelectItem value="DBS">DBS</SelectItem>
+                                                                                <SelectItem value="Diploma">Diploma</SelectItem>
+                                                                                <SelectItem value="NVTI">NVTI</SelectItem>
+                                                                                <SelectItem value="Professional Certificate">
+                                                                                    Professional Certificate
+                                                                                </SelectItem>
+                                                                                <SelectItem value="HND">HND</SelectItem>
+                                                                                <SelectItem value="Degree">Degree</SelectItem>
+                                                                                <SelectItem value="Masters">Masters</SelectItem>
+                                                                                <SelectItem value="Others">Others</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        {field.value === "Others" && (
+                                                                            <Input
+                                                                                placeholder="Enter your qualification"
+                                                                                value={customQualification}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value
+                                                                                    setCustomQualification(value)
+                                                                                    // Make sure to update the form value with the custom qualification
+                                                                                    field.onChange("Others") // Keep "Others" as the select value
+                                                                                }}
+                                                                                className="mt-2 border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all"
+                                                                            />
+                                                                        )}
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
                                                     </motion.div>
-                                                    Contact Information
-                                                </CardTitle>
-                                                <CardDescription>Enter the employee&#39;s contact details.</CardDescription>
-                                            </CardHeader>
-                                            <CardContent className="space-y-6 pt-3">
-                                                <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={formFieldVariants}>
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="address"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Address</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="456 Flame Ave, Kumasi"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#FFD700] focus:ring focus:ring-[#FFD700]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="phoneNumber"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Phone Number</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="0500000001"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#FFD700] focus:ring focus:ring-[#FFD700]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </motion.div>
-                                                <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={formFieldVariants}>
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="emergencyContactName"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Emergency Contact Name</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="John Smith"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#FFD700] focus:ring focus:ring-[#FFD700]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="emergencyContact"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-2">
-                                                                <FormLabel className="text-slate-700 font-medium">Emergency Contact Number</FormLabel>
-                                                                <div className="space-y-0">
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            placeholder="0550000002"
-                                                                            {...field}
-                                                                            className="border-slate-300 rounded-md focus:border-[#FFD700] focus:ring focus:ring-[#FFD700]/20 focus:ring-opacity-50 transition-all"
-                                                                        />
-                                                                    </FormControl>
-                                                                    <div className="h-5">
-                                                                        <FormMessage className="text-[#DC143C]" />
-                                                                    </div>
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </motion.div>
-                                            </CardContent>
-                                        </Card>
-                                    </motion.div>
-                                )}
 
-                                {/* Navigation Buttons */}
-                                <motion.div
-                                    className="flex justify-between items-center mt-6"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.2 }}
+                                                    {/* Rest of the employment fields */}
+                                                    <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="appointmentDate"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Appointment Date</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <Popover>
+                                                                            <PopoverTrigger asChild>
+                                                                                <FormControl>
+                                                                                    <Button
+                                                                                        variant={"outline"}
+                                                                                        className={cn(
+                                                                                            "w-full pl-3 text-left font-normal border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all",
+                                                                                            !field.value && "text-muted-foreground",
+                                                                                        )}
+                                                                                    >
+                                                                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                                    </Button>
+                                                                                </FormControl>
+                                                                            </PopoverTrigger>
+                                                                            <PopoverContent className="w-auto p-0" align="start">
+                                                                                <CustomDatePicker
+                                                                                    value={field.value}
+                                                                                    onChange={field.onChange}
+                                                                                    disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                                                                                />
+                                                                            </PopoverContent>
+                                                                        </Popover>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="staffId"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Staff ID</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                placeholder="EMP002"
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all"
+                                                                            />
+                                                                        </FormControl>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="serviceNumber"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Service Number</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                placeholder="SN654321"
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all"
+                                                                            />
+                                                                        </FormControl>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </motion.div>
+                                                    <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" variants={formFieldVariants}>
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="email"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Email</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                type="email"
+                                                                                placeholder="example@fireghana.gov.gh"
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all"
+                                                                            />
+                                                                        </FormControl>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="mateType"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Course/Intake</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <Select
+                                                                            onValueChange={(value) => {
+                                                                                field.onChange(value)
+                                                                                // Reset mate number when mate type changes
+                                                                                form.setValue("mateNumber", "")
+                                                                            }}
+                                                                            value={field.value}
+                                                                        >
+                                                                            <FormControl>
+                                                                                <SelectTrigger className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all">
+                                                                                    <SelectValue placeholder="Select mate type" />
+                                                                                </SelectTrigger>
+                                                                            </FormControl>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="intake">Intake (Senior)</SelectItem>
+                                                                                <SelectItem value="course">Course (Junior)</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="mateNumber"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Course/Intake Number</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                placeholder={
+                                                                                    mateType === "intake"
+                                                                                        ? "Roman numeral (e.g., IV)"
+                                                                                        : "Number or alphanumeric (e.g., 123 or A123)"
+                                                                                }
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#8B4513] focus:ring focus:ring-[#8B4513]/20 focus:ring-opacity-50 transition-all"
+                                                                                disabled={!mateType}
+                                                                            />
+                                                                        </FormControl>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </motion.div>
+                                                </CardContent>
+                                            </Card>
+                                        </motion.div>
+                                    )}
+
+                                    {/* Contact Information */}
+                                    {currentStep === 3 && (
+                                        <motion.div initial="hidden" animate="visible" variants={cardVariants}>
+                                            <Card
+                                                className={`shadow-md ${sectionColors.contact.border} border-t-4 hover:shadow-lg transition-all duration-300 bg-white`}
+                                            >
+                                                <CardHeader className="rounded-t-lg">
+                                                    <CardTitle className={`${sectionColors.contact.title} text-xl flex items-center gap-2`}>
+                                                        <motion.div
+                                                            initial={{ rotate: -10, scale: 0.9 }}
+                                                            animate={{ rotate: 0, scale: 1 }}
+                                                            transition={{ type: "spring", stiffness: 200 }}
+                                                        >
+                                                            <CheckCircle2 className={`h-5 w-5 ${sectionColors.contact.icon}`} />
+                                                        </motion.div>
+                                                        Contact Information
+                                                    </CardTitle>
+                                                    <CardDescription>Enter the employee&#39;s contact details.</CardDescription>
+                                                </CardHeader>
+                                                <CardContent className="space-y-6 pt-3">
+                                                    <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={formFieldVariants}>
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="address"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Address</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                placeholder="456 Flame Ave, Kumasi"
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#FFD700] focus:ring focus:ring-[#FFD700]/20 focus:ring-opacity-50 transition-all"
+                                                                            />
+                                                                        </FormControl>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="phoneNumber"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Phone Number</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                placeholder="0500000001"
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#FFD700] focus:ring focus:ring-[#FFD700]/20 focus:ring-opacity-50 transition-all"
+                                                                            />
+                                                                        </FormControl>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </motion.div>
+                                                    <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" variants={formFieldVariants}>
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="emergencyContactName"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Emergency Contact Name</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                placeholder="John Smith"
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#FFD700] focus:ring focus:ring-[#FFD700]/20 focus:ring-opacity-50 transition-all"
+                                                                            />
+                                                                        </FormControl>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="emergencyContact"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-2">
+                                                                    <FormLabel className="text-slate-700 font-medium">Emergency Contact Number</FormLabel>
+                                                                    <div className="space-y-0">
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                placeholder="0550000002"
+                                                                                {...field}
+                                                                                className="border-slate-300 rounded-md focus:border-[#FFD700] focus:ring focus:ring-[#FFD700]/20 focus:ring-opacity-50 transition-all"
+                                                                            />
+                                                                        </FormControl>
+                                                                        <div className="h-5">
+                                                                            <FormMessage className="text-[#DC143C]" />
+                                                                        </div>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </motion.div>
+                                                </CardContent>
+                                            </Card>
+                                        </motion.div>
+                                    )}
+                                </form>
+                            </Form>
+
+                            {/* Navigation Buttons - Separate from the form to prevent submission */}
+                            <motion.div
+                                className="flex justify-between items-center mt-6"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                            >
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handlePrevious}
+                                    disabled={currentStep === 1}
+                                    className="px-6 py-2 rounded-full shadow-sm transition-all hover:translate-y-[-2px] bg-white border-[#1C1F2A] text-[#1C1F2A] hover:bg-white"
                                 >
+                                    Previous
+                                </Button>
+
+                                <div className="flex gap-4">
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        onClick={() => currentStep > 1 && goToStep(currentStep - 1)}
-                                        disabled={currentStep === 1}
+                                        onClick={handleResetForm}
                                         className="px-6 py-2 rounded-full shadow-sm transition-all hover:translate-y-[-2px] bg-white border-[#1C1F2A] text-[#1C1F2A] hover:bg-white"
                                     >
-                                        Previous
+                                        Reset Form
                                     </Button>
 
-                                    <div className="flex gap-4">
+                                    {currentStep < 3 ? (
                                         <Button
                                             type="button"
-                                            variant="outline"
-                                            onClick={handleResetForm}
-                                            className="px-6 py-2 rounded-full shadow-sm transition-all hover:translate-y-[-2px] bg-white border-[#1C1F2A] text-[#1C1F2A] hover:bg-white"
+                                            onClick={() => goToStep(currentStep + 1)}
+                                            className={`px-6 py-2 rounded-full shadow-sm transition-all hover:translate-y-[-2px] ${
+                                                currentStep === 1
+                                                    ? "bg-[#DC143C] text-white hover:bg-[#c01235]"
+                                                    : "bg-[#8B4513] text-white hover:bg-[#7a3b10]"
+                                            }`}
                                         >
-                                            Reset Form
+                                            Next
                                         </Button>
-
-                                        {currentStep < 4 ? (
-                                            <Button
-                                                type="button"
-                                                onClick={() => goToStep(currentStep + 1)}
-                                                disabled={!isStepValid}
-                                                className={`px-6 py-2 rounded-full shadow-sm transition-all hover:translate-y-[-2px] ${
-                                                    !isStepValid ? "opacity-50 cursor-not-allowed" : ""
-                                                } ${
-                                                    currentStep === 1
-                                                        ? "bg-[#DC143C] text-white hover:bg-[#c01235]"
-                                                        : currentStep === 2
-                                                            ? "bg-[#8B4513] text-white hover:bg-[#7a3b10]"
-                                                            : "bg-[#2E8B57] text-white hover:bg-[#267a4b]"
-                                                }`}
-                                            >
-                                                Next
-                                            </Button>
-                                        ) : (
-                                            <Button
-                                                type="submit"
-                                                disabled={isSubmitting || !isStepValid}
-                                                className={`bg-[#FFD700] hover:bg-[#e6c200] text-[#1C1F2A] px-8 py-2 rounded-full shadow-sm transition-all hover:translate-y-[-2px] ${
-                                                    !isStepValid ? "opacity-50 cursor-not-allowed" : ""
-                                                }`}
-                                            >
-                                                {isSubmitting ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <svg
-                                                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-[#1C1F2A]"
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <circle
-                                                                className="opacity-25"
-                                                                cx="12"
-                                                                cy="12"
-                                                                r="10"
-                                                                stroke="currentColor"
-                                                                strokeWidth="4"
-                                                            ></circle>
-                                                            <path
-                                                                className="opacity-75"
-                                                                fill="currentColor"
-                                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                                            ></path>
-                                                        </svg>
-                                                        Processing...
-                                                    </div>
-                                                ) : (
-                                                    "Submit Details"
-                                                )}
-                                            </Button>
-                                        )}
-                                    </div>
-                                </motion.div>
-
-                            </form>
-                        </Form>
+                                    ) : (
+                                        <Button
+                                            type="submit"
+                                            form="employee-form"
+                                            disabled={isSubmitting}
+                                            className={`bg-[#FFD700] hover:bg-[#e6c200] text-[#1C1F2A] px-8 py-2 rounded-full shadow-sm transition-all hover:translate-y-[-2px]`}
+                                        >
+                                            {isSubmitting ? (
+                                                <div className="flex items-center gap-2">
+                                                    <svg
+                                                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-[#1C1F2A]"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <circle
+                                                            className="opacity-25"
+                                                            cx="12"
+                                                            cy="12"
+                                                            r="10"
+                                                            stroke="currentColor"
+                                                            strokeWidth="4"
+                                                        ></circle>
+                                                        <path
+                                                            className="opacity-75"
+                                                            fill="currentColor"
+                                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                        ></path>
+                                                    </svg>
+                                                    Processing...
+                                                </div>
+                                            ) : (
+                                                "Submit Details"
+                                            )}
+                                        </Button>
+                                    )}
+                                </div>
+                            </motion.div>
+                        </div>
                     </motion.div>
                 </div>
 
