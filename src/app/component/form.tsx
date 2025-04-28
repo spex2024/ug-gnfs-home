@@ -318,7 +318,7 @@ export default function EmployeeForm() {
     const [currentStep, setCurrentStep] = useState(1)
     const [formProgress, setFormProgress] = useState(0)
     const [customQualification, setCustomQualification] = useState("")
-    const [debugMessage, setDebugMessage] = useState<string>("")
+    const [debugMessage] = useState<string>("")
 
     // Default values for the form
     const defaultValues: Partial<EmployeeFormValues> = {
