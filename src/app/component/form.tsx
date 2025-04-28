@@ -474,49 +474,7 @@ export default function EmployeeForm() {
         setCustomQualification("")
     }
 
-    // Manual submit handler for the submit button
-    const handleManualSubmit = () => {
-        console.log("Manual submit button clicked")
-        setDebugMessage("Manual submit button clicked")
 
-        if (isSubmitting) return
-
-        // Validate the form first
-        form.trigger().then((isValid) => {
-            if (!isValid) {
-                toast.error("Please fill in all required fields correctly")
-                return
-            }
-
-            // Get form data with proper typing
-            const data = form.getValues()
-            setIsSubmitting(true)
-
-            // Show loading toast
-            const loadingToastId = toast.loading("Registering employee...")
-
-            // Prepare data for submission
-            const submissionData = {
-                ...data,
-                mateInfo: `${data.mateType || ""}-${data.mateNumber || ""}`,
-            }
-
-            // Call the store function
-            addEmployee(submissionData)
-                .then(() => {
-                    toast.dismiss(loadingToastId)
-                    toast.success(`${data.firstName} ${data.lastName} has been registered successfully!`)
-                    handleResetForm()
-                })
-                .catch((error) => {
-                    toast.dismiss(loadingToastId)
-                    toast.error(error instanceof Error ? error.message : "Failed to register employee")
-                })
-                .finally(() => {
-                    setIsSubmitting(false)
-                })
-        })
-    }
 
     // Replace the useEffect for progress calculation with this improved version
     useEffect(() => {
