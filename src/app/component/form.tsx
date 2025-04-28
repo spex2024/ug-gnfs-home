@@ -481,33 +481,41 @@ export default function EmployeeForm() {
 
         if (isSubmitting) return
 
-        // Get form data
-        const data = form.getValues()
-        setIsSubmitting(true)
+        // Validate the form first
+        form.trigger().then((isValid) => {
+            if (!isValid) {
+                toast.error("Please fill in all required fields correctly")
+                return
+            }
 
-        // Show loading toast
-        const loadingToastId = toast.loading("Registering employee...")
+            // Get form data with proper typing
+            const data = form.getValues()
+            setIsSubmitting(true)
 
-        // Prepare data for submission
-        const submissionData = {
-            ...data,
-            mateInfo: `${data.mateType || ""}-${data.mateNumber || ""}`,
-        }
+            // Show loading toast
+            const loadingToastId = toast.loading("Registering employee...")
 
-        // Call the store function
-        addEmployee(submissionData)
-            .then(() => {
-                toast.dismiss(loadingToastId)
-                toast.success(`${data.firstName} ${data.lastName} has been registered successfully!`)
-                handleResetForm()
-            })
-            .catch((error) => {
-                toast.dismiss(loadingToastId)
-                toast.error(error instanceof Error ? error.message : "Failed to register employee")
-            })
-            .finally(() => {
-                setIsSubmitting(false)
-            })
+            // Prepare data for submission
+            const submissionData = {
+                ...data,
+                mateInfo: `${data.mateType || ""}-${data.mateNumber || ""}`,
+            }
+
+            // Call the store function
+            addEmployee(submissionData)
+                .then(() => {
+                    toast.dismiss(loadingToastId)
+                    toast.success(`${data.firstName} ${data.lastName} has been registered successfully!`)
+                    handleResetForm()
+                })
+                .catch((error) => {
+                    toast.dismiss(loadingToastId)
+                    toast.error(error instanceof Error ? error.message : "Failed to register employee")
+                })
+                .finally(() => {
+                    setIsSubmitting(false)
+                })
+        })
     }
 
     // Replace the useEffect for progress calculation with this improved version
@@ -533,13 +541,15 @@ export default function EmployeeForm() {
             "phoneNumber",
             "emergencyContactName",
             "emergencyContact",
-        ]
+        ] as const // Make this a const array to help TypeScript understand it's a fixed set of keys
 
         // Count how many required fields are filled with valid values
         let filledRequiredFields = 0
 
+        // Use type-safe iteration over the required fields
         for (const field of requiredFields) {
-            const value = formValues[field]
+            // Use type assertion to tell TypeScript this is a valid key of EmployeeFormValues
+            const value = formValues[field as keyof EmployeeFormValues]
             if (value !== undefined && value !== "" && value !== null) {
                 // For date fields, check if they're valid Date objects
                 if (field === "dob" || field === "appointmentDate") {
